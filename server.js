@@ -27,27 +27,36 @@ if (!ZEN_KEY) {
   );
 }
 
-// Known free model ids as of writing. OpenCode Zen's free lineup changes
-// over time — GET /v1/models on this proxy always reflects the live list.
+// Current free models on OpenCode Zen (per https://opencode.ai/docs/zen/,
+// last checked 2026-07-26). These are explicitly "free for a limited time" —
+// the team can add/remove/paywall any of them without notice, so treat this
+// as a snapshot, not a guarantee. GET /free-models on this proxy re-derives
+// this list from Zen's live /v1/models response where possible.
 const KNOWN_FREE_MODELS = [
-  "big-pickle",
-  "mimo-v2-pro-free",
-  "mimo-v2-omni-free",
-  "minimax-m2.5-free",
-  "nemotron-3-super-free",
-  "nemotron-3-ultra-free",
-  "north-mini-code-free",
-  "deepseek-v4-flash-free",
+  { id: "big-pickle", name: "Big Pickle", note: "Stealth model" },
+  { id: "deepseek-v4-flash-free", name: "DeepSeek V4 Flash Free" },
+  { id: "mimo-v2.5-free", name: "MiMo-V2.5 Free" },
+  { id: "laguna-s-2.1-free", name: "Laguna S 2.1 Free" },
+  { id: "ling-3.0-flash-free", name: "Ling-3.0-flash Free" },
+  { id: "north-mini-code-free", name: "North Mini Code Free" },
+  { id: "nemotron-3-ultra-free", name: "Nemotron 3 Ultra Free" },
 ];
 
-const DEFAULT_MODEL = KNOWN_FREE_MODELS[0];
+const FREE_MODEL_IDS = KNOWN_FREE_MODELS.map((m) => m.id);
+const DEFAULT_MODEL = FREE_MODEL_IDS[0];
 
 // Janitor AI will send whatever model string the user typed in its UI.
-// Strip an "opencode/" prefix if present, fall back to a sane default
-// otherwise, and always re-add the "opencode/" prefix Zen expects.
+// The "opencode/<model-id>" format is only used inside OpenCode's own CLI
+// config — the raw HTTP endpoint (what this proxy calls) wants the bare
+// model id, e.g. "mimo-v2.5-free", not "opencode/mimo-v2.5-free". Strip
+// the prefix if someone included it out of habit.
 function toZenModel(requested) {
   const id = (requested || DEFAULT_MODEL).replace(/^opencode\//, "").trim();
-  return `opencode/${id || DEFAULT_MODEL}`;
+  return id || DEFAULT_MODEL;
+}
+
+function isKnownFreeModel(id) {
+  return FREE_MODEL_IDS.includes((id || "").replace(/^opencode\//, "").trim());
 }
 
 app.get("/", (req, res) => {
@@ -55,17 +64,33 @@ app.get("/", (req, res) => {
 });
 
 // OpenAI-compatible model listing. Janitor AI sometimes calls this to
-// validate the endpoint before letting you save it.
+// validate the endpoint / populate a model dropdown. Defaults to free
+// models only; pass ?all=1 to see every model Zen offers (paid included).
 app.get("/v1/models", async (req, res) => {
   try {
     const upstream = await fetch(`${ZEN_BASE}/models`, {
       headers: { Authorization: `Bearer ${ZEN_KEY}` },
     });
     const data = await upstream.json();
-    res.status(upstream.status).json(data);
+
+    if (req.query.all || !Array.isArray(data?.data)) {
+      return res.status(upstream.status).json(data);
+    }
+
+    const freeOnly = {
+      ...data,
+      data: data.data.filter((m) => isKnownFreeModel(m.id)),
+    };
+    res.status(upstream.status).json(freeOnly);
   } catch (err) {
     res.status(502).json({ error: { message: `Failed to reach OpenCode Zen: ${err.message}` } });
   }
+});
+
+// Plain, non-OpenAI-shaped list of the free models this proxy knows about —
+// handy for humans configuring Janitor AI by hand.
+app.get("/free-models", (req, res) => {
+  res.json({ models: KNOWN_FREE_MODELS });
 });
 
 // Core chat endpoint Janitor AI actually talks to.
