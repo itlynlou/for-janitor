@@ -1,0 +1,16 @@
+{
+  "name": "janitor-zen-proxy",
+  "version": "1.0.0",
+  "description": "OpenAI-compatible proxy that lets Janitor AI use OpenCode Zen's free models without exposing an API key to end users.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
