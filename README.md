@@ -49,11 +49,24 @@ and set:
 - **Reverse Proxy URL / Endpoint:** `https://<your-public-url>/v1`
 - **API Key:** anything at all — e.g. `not-needed` (the proxy ignores it;
   your real key lives server-side)
-- **Model:** one of the free model ids, e.g. `big-pickle`,
-  `mimo-v2-pro-free`, `minimax-m2.5-free`, `deepseek-v4-flash-free`
-  (see current list at https://opencode.ai/zen/v1/models — free models
-  rotate over time, so double-check what's currently free before relying
-  on one for long-term use)
+- **Model:** one of the free model ids currently baked into `server.js`
+  (as of 2026-07-26, per https://opencode.ai/docs/zen/):
+
+  | Model | ID |
+  |---|---|
+  | Big Pickle | `big-pickle` |
+  | DeepSeek V4 Flash Free | `deepseek-v4-flash-free` |
+  | MiMo-V2.5 Free | `mimo-v2.5-free` |
+  | Laguna S 2.1 Free | `laguna-s-2.1-free` |
+  | Ling-3.0-flash Free | `ling-3.0-flash-free` |
+  | North Mini Code Free | `north-mini-code-free` |
+  | Nemotron 3 Ultra Free | `nemotron-3-ultra-free` |
+
+  Hit `GET /free-models` on your running proxy for this same list, or
+  `GET /v1/models` for the OpenAI-shaped version (add `?all=1` to include
+  paid models too). These are explicitly "free for a limited time" on
+  Zen's end, so the lineup can change — re-check the docs link above if a
+  model id stops working.
 
 ## Quick manual test
 
@@ -61,7 +74,7 @@ and set:
 curl http://localhost:3000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "big-pickle",
+    "model": "deepseek-v4-flash-free",
     "messages": [{"role": "user", "content": "Say hi in five words."}]
   }'
 ```

@@ -101,7 +101,7 @@ app.post("/v1/chat/completions", async (req, res) => {
     });
   }
 
-  const body = { ...req.body, model: toZenModel(req.body.model) };
+  const body = { ...(req.body || {}), model: toZenModel(req.body?.model) };
 
   try {
     const upstream = await fetch(`${ZEN_BASE}/chat/completions`, {
@@ -133,6 +133,20 @@ app.post("/v1/chat/completions", async (req, res) => {
   } catch (err) {
     res.status(502).json({ error: { message: `Failed to reach OpenCode Zen: ${err.message}` } });
   }
+});
+
+// Safety net: any error that reaches here (malformed JSON body, an
+// unexpected throw, etc.) gets a proper JSON response instead of falling
+// through to Express's default HTML error page — which is what was
+// producing the generic "Internal server error" you saw, since Janitor AI
+// couldn't parse that HTML and substituted its own generic message.
+app.use((err, req, res, next) => {
+  console.error("[proxy error]", err);
+  if (res.headersSent) return next(err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    error: { message: `Proxy error: ${err.message || "unknown error"}` },
+  });
 });
 
 const PORT = process.env.PORT || 3000;
