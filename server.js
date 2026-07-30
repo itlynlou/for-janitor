@@ -149,8 +149,18 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Proxy listening on http://localhost:${PORT}`);
-  console.log(`Point Janitor AI's custom proxy at: http://<your-public-url>:${PORT}/v1`);
-});
+// Vercel's Node runtime invokes the default export directly as a request
+// handler — Express apps are callable as (req, res), so this works without
+// needing app.listen() at all. Calling app.listen() in a serverless
+// function is at best a no-op and at worst a source of confusing errors,
+// so it's skipped entirely when running on Vercel (Vercel always sets the
+// VERCEL env var).
+export default app;
+
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Proxy listening on http://localhost:${PORT}`);
+    console.log(`Point Janitor AI's custom proxy at: http://<your-public-url>:${PORT}/v1`);
+  });
+}

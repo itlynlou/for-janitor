@@ -30,7 +30,40 @@ npm start
 The proxy listens on `http://localhost:3000` by default (`PORT` env var to
 change it).
 
-## 4. Make it reachable from Janitor AI
+## Deploying to Vercel
+
+This project now includes `vercel.json` and works as a Vercel serverless
+function out of the box:
+
+```bash
+vercel deploy --prod
+```
+
+Set `OPENCODE_ZEN_KEY` as an environment variable in your Vercel project
+settings (Settings → Environment Variables) — not in `.env`, which Vercel
+doesn't read at runtime.
+
+**If you get a 500 with no clear cause:** the JSON export from Vercel's
+log drawer only contains request-level info (status code, duration) — not
+the actual error message. To see the real error:
+
+1. Go to your Vercel project → **Deployments** → click the deployment →
+   **Functions** (or **Logs**) tab.
+2. Find the failing request and look for a line starting with
+   `[proxy error]` — that's this proxy's own error handler, and it logs
+   the real message.
+3. Share that text if you need help debugging further; the JSON access-log
+   export alone usually isn't enough to diagnose a 500.
+
+A quick tell: if a failing request's `durationMs` is very short (under
+~500ms) compared to successful ones, the crash is happening before the
+proxy even reaches OpenCode Zen — look at the top of `server.js` for
+anything reading `req.body` unguarded. If `durationMs` is close to your
+function's max duration, it's timing out instead — see `maxDuration` in
+`vercel.json` (raise it if your Vercel plan allows; OpenCode Zen's free
+models can take 10–40+ seconds to respond).
+
+## Deploying elsewhere (local, Render, Fly.io, etc.)
 
 Janitor AI is a website — it needs to reach your proxy over the public
 internet, not `localhost`. Pick one:
@@ -41,7 +74,7 @@ internet, not `localhost`. Pick one:
   process running (e.g. Render, Fly.io, Railway). Set `OPENCODE_ZEN_KEY` as
   an environment variable there instead of a local `.env` file.
 
-## 5. Configure Janitor AI
+## Configure Janitor AI
 
 In Janitor AI, choose the custom/proxy OpenAI-compatible connection option
 and set:
