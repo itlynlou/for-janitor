@@ -1,124 +1,116 @@
 # Janitor AI ↔ OpenCode Zen proxy
 
-A tiny OpenAI-compatible server that lets you use [OpenCode Zen](https://opencode.ai/docs/zen/)'s
-free models from Janitor AI's "custom proxy" connection, without Janitor AI
-(or anyone using your proxy) ever seeing a real API key.
+Lets Janitor AI use OpenCode Zen's free models through an OpenAI-compatible
+endpoint, without Janitor AI (or anyone using your proxy) ever seeing your
+real API key.
 
-How it works: OpenCode Zen's `/v1/chat/completions` endpoint is already
-OpenAI-compatible, so this proxy mostly just relays your request — it swaps
-in your free Zen key server-side and forwards the response (including
-streaming) back to Janitor AI.
+This guide assumes **no command line at all** — everything happens by
+clicking through GitHub's and Vercel's websites.
 
-## 1. Get a free OpenCode Zen key (one-time, no card required)
+## 1. Get a free OpenCode Zen key
 
-Go to https://opencode.ai/auth and sign up. Copy the API key it gives you.
+Go to https://opencode.ai/auth and sign up (no card required). Copy the
+API key it shows you — you'll paste it into Vercel in step 4.
 
-## 2. Configure the proxy
+## 2. Put these files on GitHub
 
-```bash
-cp .env.example .env
-# edit .env and paste your key into OPENCODE_ZEN_KEY
+1. Go to https://github.com/new and create a new repository (any name,
+   Public or Private, don't add a README — just create it empty).
+2. On the empty repo's page, click **"uploading an existing file"**.
+3. Drag in every file from this project — **including the `api` folder**
+   — and drop them onto the upload area. GitHub preserves folder
+   structure, so `api/index.js` will land in the right place.
+4. Scroll down and click **Commit changes**.
+
+You should end up with this structure in your repo:
+
+```
+api/index.js
+package.json
+vercel.json
+.env.example
+README.md
 ```
 
-## 3. Install and run
+## 3. Import the repo into Vercel
 
-```bash
-npm install
-npm start
+1. Go to https://vercel.com/new and sign in (the "Continue with GitHub"
+   button is easiest).
+2. Find the repo you just created and click **Import**.
+3. **Before clicking Deploy**, expand **Environment Variables** and add:
+   - Key: `OPENCODE_ZEN_KEY`
+   - Value: (paste the key from step 1)
+4. Click **Deploy**.
+
+This first deployment automatically becomes your **Production**
+deployment — no separate "push to production" step needed.
+
+## 4. Confirm it's live
+
+Wait for the build to finish (about a minute), then Vercel shows you a
+URL like `https://your-project-name.vercel.app`. Open it in a browser —
+you should see:
+
+```json
+{"status":"ok","message":"Janitor AI <-> OpenCode Zen proxy is running"}
 ```
 
-The proxy listens on `http://localhost:3000` by default (`PORT` env var to
-change it).
+If you see that, it's live. If you see a Vercel error page instead, check
+the **Deployments** tab for a red ✗ and click it to see the build log —
+that will show an actual error message rather than a generic 500.
 
-## Deploying to Vercel
+## 5. Configure Janitor AI
 
-This project now includes `vercel.json` and works as a Vercel serverless
-function out of the box:
+In Janitor AI's custom/proxy connection settings:
 
-```bash
-vercel deploy --prod
-```
-
-Set `OPENCODE_ZEN_KEY` as an environment variable in your Vercel project
-settings (Settings → Environment Variables) — not in `.env`, which Vercel
-doesn't read at runtime.
-
-**If you get a 500 with no clear cause:** the JSON export from Vercel's
-log drawer only contains request-level info (status code, duration) — not
-the actual error message. To see the real error:
-
-1. Go to your Vercel project → **Deployments** → click the deployment →
-   **Functions** (or **Logs**) tab.
-2. Find the failing request and look for a line starting with
-   `[proxy error]` — that's this proxy's own error handler, and it logs
-   the real message.
-3. Share that text if you need help debugging further; the JSON access-log
-   export alone usually isn't enough to diagnose a 500.
-
-A quick tell: if a failing request's `durationMs` is very short (under
-~500ms) compared to successful ones, the crash is happening before the
-proxy even reaches OpenCode Zen — look at the top of `server.js` for
-anything reading `req.body` unguarded. If `durationMs` is close to your
-function's max duration, it's timing out instead — see `maxDuration` in
-`vercel.json` (raise it if your Vercel plan allows; OpenCode Zen's free
-models can take 10–40+ seconds to respond).
-
-## Deploying elsewhere (local, Render, Fly.io, etc.)
-
-Janitor AI is a website — it needs to reach your proxy over the public
-internet, not `localhost`. Pick one:
-
-- **Quick test:** run `npx ngrok http 3000` (or Cloudflare Tunnel) and use
-  the `https://...ngrok...` URL it gives you.
-- **Always-on:** deploy this folder to a free/low-cost host that keeps a
-  process running (e.g. Render, Fly.io, Railway). Set `OPENCODE_ZEN_KEY` as
-  an environment variable there instead of a local `.env` file.
-
-## Configure Janitor AI
-
-In Janitor AI, choose the custom/proxy OpenAI-compatible connection option
-and set:
-
-- **Reverse Proxy URL / Endpoint:** `https://<your-public-url>/v1`
+- **Endpoint:** `https://your-project-name.vercel.app/v1`
 - **API Key:** anything at all — e.g. `not-needed` (the proxy ignores it;
-  your real key lives server-side)
-- **Model:** one of the free model ids currently baked into `server.js`
-  (as of 2026-07-26, per https://opencode.ai/docs/zen/):
+  your real key lives in Vercel's environment variables)
+- **Model:** one of the free model ids below
 
-  | Model | ID |
-  |---|---|
-  | Big Pickle | `big-pickle` |
-  | DeepSeek V4 Flash Free | `deepseek-v4-flash-free` |
-  | MiMo-V2.5 Free | `mimo-v2.5-free` |
-  | Laguna S 2.1 Free | `laguna-s-2.1-free` |
-  | Ling-3.0-flash Free | `ling-3.0-flash-free` |
-  | North Mini Code Free | `north-mini-code-free` |
-  | Nemotron 3 Ultra Free | `nemotron-3-ultra-free` |
+| Model | ID |
+|---|---|
+| Big Pickle | `big-pickle` |
+| DeepSeek V4 Flash Free | `deepseek-v4-flash-free` |
+| MiMo-V2.5 Free | `mimo-v2.5-free` |
+| Laguna S 2.1 Free | `laguna-s-2.1-free` |
+| Ling-3.0-flash Free | `ling-3.0-flash-free` |
+| North Mini Code Free | `north-mini-code-free` |
+| Nemotron 3 Ultra Free | `nemotron-3-ultra-free` |
 
-  Hit `GET /free-models` on your running proxy for this same list, or
-  `GET /v1/models` for the OpenAI-shaped version (add `?all=1` to include
-  paid models too). These are explicitly "free for a limited time" on
-  Zen's end, so the lineup can change — re-check the docs link above if a
-  model id stops working.
+Open `https://your-project-name.vercel.app/free-models` any time to see
+this same list live from the proxy, or `/v1/models` for the OpenAI-shaped
+version.
 
-## Quick manual test
+## Making changes later
 
-```bash
-curl http://localhost:3000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "deepseek-v4-flash-free",
-    "messages": [{"role": "user", "content": "Say hi in five words."}]
-  }'
-```
+You don't need the CLI for updates either — edit files directly on
+GitHub's website (click the pencil icon on any file, edit, commit to
+`main`), and Vercel automatically redeploys production within about a
+minute of every commit to `main`.
+
+## If something still goes wrong
+
+1. **Test the endpoint directly first**, before touching Janitor AI —
+   open `https://your-project-name.vercel.app/v1/models` in a browser.
+   A real JSON response (even an error one) means the function is
+   running; a Vercel-branded error page means it isn't.
+2. **Check the Deployments tab** in your Vercel project for a red ✗ on
+   the latest deployment — click it for the actual build/runtime error.
+3. **Double-check the environment variable** — Vercel → your project →
+   Settings → Environment Variables → confirm `OPENCODE_ZEN_KEY` is set
+   for the **Production** environment specifically (not just Preview).
+4. If you change the environment variable, you need a new deployment for
+   it to take effect — go to Deployments, click the "..." menu on the
+   latest one, and choose **Redeploy**.
 
 ## Notes
 
-- OpenCode Zen's free models are explicitly offered "for a limited time" —
-  treat the list in `server.js` (`KNOWN_FREE_MODELS`) as a starting point,
-  not a guarantee. `GET /v1/models` on this proxy always reflects Zen's live
-  catalog.
-- This proxy does not add its own rate limiting or auth — anyone who
-  discovers your public URL can spend your free quota. If you deploy it
-  publicly long-term, consider adding a shared-secret check on the
-  `Authorization` header before forwarding.
+- OpenCode Zen's free models are explicitly offered "for a limited time"
+  — the lineup in `api/index.js` (`KNOWN_FREE_MODELS`) is a snapshot, not
+  a guarantee. Re-check https://opencode.ai/docs/zen/ if a model id stops
+  working.
+- This proxy adds no rate limiting or auth of its own — anyone who finds
+  your `.vercel.app` URL can spend your free OpenCode Zen quota. Fine for
+  personal use; if that becomes a problem, ask and I can add a shared-
+  secret check.
